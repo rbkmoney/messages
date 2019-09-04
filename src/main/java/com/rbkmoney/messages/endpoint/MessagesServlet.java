@@ -8,7 +8,7 @@ import javax.servlet.*;
 import javax.servlet.annotation.WebServlet;
 import java.io.IOException;
 
-@WebServlet("/messages")
+@WebServlet("/v1/messages")
 @RequiredArgsConstructor
 public class MessagesServlet extends GenericServlet {
 

@@ -1,0 +1,33 @@
+info:
+    stage: dev
+    version: '@project.version@'
+server:
+    port: '@server.port@'
+management:
+    metrics:
+        export:
+            statsd:
+                flavor: etsy
+                enabled: false
+    security:
+        flag: false
+messages:
+    db:
+        batch-size: 1000
+spring:
+    application:
+        name: '@project.name@'
+    datasource:
+        driver-class-name: org.postgresql.Driver
+        type: com.zaxxer.hikari.HikariDataSource
+        hikari:
+            idle-timeout: 30000
+            maximum-pool-size: 10
+        password: '@db.password@'
+        url: '@db.url@'
+        username: '@db.user@'
+    flyway:
+        enabled: true
+        password: '@db.password@'
+        url: '@db.url@'
+        user: '@db.user@'
