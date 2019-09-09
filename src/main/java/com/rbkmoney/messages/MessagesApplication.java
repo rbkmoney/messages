@@ -11,7 +11,7 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 public class MessagesApplication extends SpringApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(MessagesApplication.class);
+        SpringApplication.run(MessagesApplication.class, args);
     }
 
 }
