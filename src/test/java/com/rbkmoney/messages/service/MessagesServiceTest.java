@@ -88,17 +88,6 @@ public class MessagesServiceTest {
                 .saveAll(TEST_MESSAGES);
     }
 
-    @Test
-    public void conversationsSaveDuplication() throws TException {
-        Conversation conversation = TestData.createConversation("1", ConversationStatus.ACTUAL);
-        conversationDao.saveAll(Collections.singletonList(conversation));
-        Conversation conversation2 = TestData.createConversation("1", ConversationStatus.OUTDATED);
-        conversationDao.saveAll(Collections.singletonList(conversation2));
-
-        List<Conversation> conversations = conversationDao.findAllById(Collections.singletonList("1"));
-        System.out.println(conversations);
-    }
-
     private void givenConversations() {
         when(conversationDao.findAllById(anyList()))
                 .thenReturn(new ArrayList<>(TEST_CONVERSATIONS));

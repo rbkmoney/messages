@@ -7,6 +7,7 @@ import com.rbkmoney.messages.domain.ConversationStatus;
 import com.rbkmoney.messages.domain.Message;
 import com.rbkmoney.messages.domain.User;
 import com.rbkmoney.messages.exception.DaoException;
+import org.apache.thrift.TException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -15,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.util.Pair;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.Collections;
 import java.util.List;
 
 public class DaoImplIT extends AbstractIT {
@@ -83,6 +85,34 @@ public class DaoImplIT extends AbstractIT {
                 Pair.of("2", "1")
         ), "1");
         messageDao.saveAll(messages);
+    }
+
+    @Test
+    public void conversationsSaveDuplicationTest() {
+        Conversation conversation = TestData.createConversation("1", ConversationStatus.ACTUAL);
+        conversationDao.saveAll(Collections.singletonList(conversation));
+        Conversation conversation2 = TestData.createConversation("1", ConversationStatus.OUTDATED);
+        conversationDao.saveAll(Collections.singletonList(conversation2));
+
+        List<Conversation> conversations = conversationDao.findAllById(Collections.singletonList("1"));
+        Assert.assertSame(conversations.get(0).getStatus(), ConversationStatus.OUTDATED);
+    }
+
+    @Test
+    public void userModifySaveTest() {
+        User user = TestData.createUser("1");
+        userDao.save(user);
+
+        User userDb2 = userDao.findAllById(Collections.singletonList("1")).get(0);
+
+        User userModified = TestData.createUser("1");
+        userModified.setFullName("Test name");
+        userModified.setEmail("newtest@mail.com");
+        userDao.save(userModified);
+
+        User userDb = userDao.findAllById(Collections.singletonList("1")).get(0);
+        Assert.assertEquals(userModified.getFullName(), userDb.getFullName());
+        Assert.assertEquals(userModified.getEmail(), userDb.getEmail());
     }
 
 }
