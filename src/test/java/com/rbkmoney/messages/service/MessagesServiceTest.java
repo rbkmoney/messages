@@ -2,10 +2,12 @@ package com.rbkmoney.messages.service;
 
 import com.rbkmoney.damsel.messages.ConversationsNotFound;
 import com.rbkmoney.damsel.messages.GetConversationResponse;
-import com.rbkmoney.damsel.messages.UsersNotProvided;
+import com.rbkmoney.messages.TestData;
 import com.rbkmoney.messages.dao.ConversationDao;
 import com.rbkmoney.messages.dao.MessageDao;
 import com.rbkmoney.messages.dao.UserDao;
+import com.rbkmoney.messages.domain.Conversation;
+import com.rbkmoney.messages.domain.ConversationStatus;
 import com.rbkmoney.messages.domain.mapper.ConversationMapper;
 import com.rbkmoney.messages.domain.mapper.UserMapper;
 import org.apache.thrift.TException;
@@ -15,6 +17,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.BlockJUnit4ClassRunner;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -41,7 +44,6 @@ public class MessagesServiceTest {
         GetConversationResponse response = messagesService.getConversations(ids, null);
 
         Assert.assertEquals(ids.size(), response.getConversations().size());
-        Assert.assertEquals(TEST_USERS.size(), response.getUsers().size());
     }
 
     @Test
@@ -76,28 +78,25 @@ public class MessagesServiceTest {
     public void conversationsSavedNormally() throws TException {
         messagesService.saveConversations(
                 TEST_CONVERSATIONS.stream().map(ConversationMapper::toThrift).collect(Collectors.toList()),
-                TEST_USERS.stream().map(UserMapper::toThrift).collect(Collectors.toList()));
+                UserMapper.toThrift(TEST_USER));
 
         verify(conversationDao, times(1))
                 .saveAll(TEST_CONVERSATIONS);
         verify(userDao, times(1))
-                .saveAll(TEST_USERS);
+                .save(TEST_USER);
         verify(messageDao, times(1))
                 .saveAll(TEST_MESSAGES);
     }
 
     @Test
-    public void notProvidedUsersWhenSaving() throws TException {
-        try {
-            messagesService.saveConversations(
-                    TEST_CONVERSATIONS.stream().map(ConversationMapper::toThrift).collect(Collectors.toList()),
-                    TEST_USERS.stream()
-                            .map(UserMapper::toThrift)
-                            .filter(user -> !user.getUserId().equals("1"))
-                            .collect(Collectors.toList()));
-        } catch (UsersNotProvided ex) {
-            Assert.assertEquals("1", ex.getIds().get(0));
-        }
+    public void conversationsSaveDuplication() throws TException {
+        Conversation conversation = TestData.createConversation("1", ConversationStatus.ACTUAL);
+        conversationDao.saveAll(Collections.singletonList(conversation));
+        Conversation conversation2 = TestData.createConversation("1", ConversationStatus.OUTDATED);
+        conversationDao.saveAll(Collections.singletonList(conversation2));
+
+        List<Conversation> conversations = conversationDao.findAllById(Collections.singletonList("1"));
+        System.out.println(conversations);
     }
 
     private void givenConversations() {
@@ -107,7 +106,7 @@ public class MessagesServiceTest {
 
     private void givenUsers() {
         when(userDao.findAllById(anyList()))
-                .thenReturn(new ArrayList<>(TEST_USERS));
+                .thenReturn(List.of(TEST_USER));
     }
 
     private void givenMessages() {

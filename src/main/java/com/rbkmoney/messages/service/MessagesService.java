@@ -46,7 +46,7 @@ public class MessagesService implements MessageServiceSrv.Iface {
 
     @Override
     @Transactional
-    public void saveConversations(List<Conversation> conversationsThrift, List<User> users) throws TException {
+    public void saveConversations(List<Conversation> conversationsThrift, User user) throws TException {
         List<com.rbkmoney.messages.domain.Conversation> conversations = conversationsThrift.stream()
                 .map(ConversationMapper::fromThrift)
                 .collect(Collectors.toList());
@@ -55,10 +55,8 @@ public class MessagesService implements MessageServiceSrv.Iface {
                 .flatMap(conversation -> conversation.getMessages().stream())
                 .collect(Collectors.toList());
 
-        checkAllUsersProvided(messages, users);
-
         conversationDao.saveAll(conversations);
-        userDao.saveAll(users.stream().map(UserMapper::fromThrift).collect(Collectors.toList()));
+        userDao.save(UserMapper.fromThrift(user));
         messageDao.saveAll(messages);
     }
 
@@ -89,23 +87,6 @@ public class MessagesService implements MessageServiceSrv.Iface {
                 .collect(Collectors.toList());
 
         return userDao.findAllById(userIds);
-    }
-
-
-    private void checkAllUsersProvided(List<Message> messages, List<User> users) throws UsersNotProvided {
-        List<String> messagesUserIds = messages.stream()
-                .map(Message::getUserId)
-                .distinct()
-                .collect(Collectors.toList());
-
-        List<String> providedUserIds = users.stream()
-                .map(User::getUserId)
-                .collect(Collectors.toList());
-
-        List<String> notFoundIds = ListUtils.removeAll(messagesUserIds, providedUserIds);
-        if (!notFoundIds.isEmpty()) {
-            throw new UsersNotProvided(notFoundIds);
-        }
     }
 
     private void checkAllConversationsFound(List<com.rbkmoney.messages.domain.Conversation> conversations,

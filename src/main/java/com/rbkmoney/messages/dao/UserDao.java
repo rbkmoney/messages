@@ -9,5 +9,7 @@ public interface UserDao {
 
     void saveAll(List<User> users) throws DaoException;
 
+    void save(User user) throws DaoException;
+
     List<User> findAllById(List<String> ids) throws DaoException;
 }

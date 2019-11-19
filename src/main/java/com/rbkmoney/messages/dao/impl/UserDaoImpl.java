@@ -5,10 +5,13 @@ import com.rbkmoney.messages.dao.UserDao;
 import com.rbkmoney.messages.domain.User;
 import com.rbkmoney.messages.exception.DaoException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -40,6 +43,24 @@ public class UserDaoImpl implements UserDao {
         }
 
         daoHelper.checkUpdateRowsSuccess(updateCounts);
+    }
+
+    @Override
+    public void save(User user) throws DaoException {
+        String insertSql = "INSERT INTO msgs.author(id, email, full_name) VALUES (?, ?, ?) " +
+                "ON CONFLICT (id) DO " +
+                "UPDATE set email = excluded.email, full_name = excluded.full_name";
+        try {
+            jdbcTemplate.execute(insertSql, (PreparedStatementCallback<Boolean>) ps -> {
+                ps.setString(1, user.getId());
+                ps.setString(2, user.getEmail());
+                ps.setString(3, user.getFullName());
+
+                return ps.execute();
+            });
+        } catch (Exception ex) {
+            throw new DaoException(ex);
+        }
     }
 
     @Override

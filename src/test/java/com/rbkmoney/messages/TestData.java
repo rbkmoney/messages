@@ -31,7 +31,7 @@ public class TestData {
             createConversation("4", ConversationStatus.OUTDATED)
     );
 
-    public static final List<User> TEST_USERS = List.of(createUser("1"), createUser("2"));
+    public static final User TEST_USER = createUser("1");
 
     public static final List<Message> TEST_MESSAGES = TEST_CONVERSATIONS.stream()
             .flatMap(conv -> conv.getMessages().stream())
