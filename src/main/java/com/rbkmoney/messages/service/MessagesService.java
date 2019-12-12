@@ -8,11 +8,13 @@ import com.rbkmoney.messages.domain.Message;
 import com.rbkmoney.messages.domain.mapper.ConversationMapper;
 import com.rbkmoney.messages.domain.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.thrift.TException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import static com.rbkmoney.messages.domain.mapper.ConversationStatusMapper.fromThrift;
 
 @Component
+@Slf4j
 @RequiredArgsConstructor
 public class MessagesService implements MessageServiceSrv.Iface {
 
@@ -30,6 +33,8 @@ public class MessagesService implements MessageServiceSrv.Iface {
     @Override
     public GetConversationResponse getConversations(List<String> conversationIds, ConversationFilter conversationFilter)
             throws TException {
+        String conversationIdsJoin = String.join(", ", conversationIds);
+        log.info("Get conversation by ids: {}", String.join(", ", conversationIdsJoin));
         List<com.rbkmoney.messages.domain.Conversation> conversations = conversationDao.findAllById(conversationIds);
 
         checkAllConversationsFound(conversations, conversationIds);
@@ -38,7 +43,11 @@ public class MessagesService implements MessageServiceSrv.Iface {
             com.rbkmoney.messages.domain.ConversationStatus conversationStatus = fromThrift(conversationFilter.getConversationStatus());
             conversations.removeIf(conversation -> !conversation.getStatus().equals(conversationStatus));
         }
+
+        log.info("Get messages by ids: {}", conversationIdsJoin);
         conversations = enrichWithMessages(conversations, conversationIds);
+
+        log.info("Get users by ids: {}", conversationIdsJoin);
         List<com.rbkmoney.messages.domain.User> users = getUsers(conversations);
 
         return convertToResponse(conversations, users);
@@ -47,17 +56,23 @@ public class MessagesService implements MessageServiceSrv.Iface {
     @Override
     @Transactional
     public void saveConversations(List<Conversation> conversationsThrift, User user) throws TException {
-        List<com.rbkmoney.messages.domain.Conversation> conversations = conversationsThrift.stream()
-                .map(ConversationMapper::fromThrift)
-                .collect(Collectors.toList());
+        try {
+            log.info("Save conversations for user: {}", user);
+            List<com.rbkmoney.messages.domain.Conversation> conversations = conversationsThrift.stream()
+                    .map(ConversationMapper::fromThrift)
+                    .collect(Collectors.toList());
 
-        List<Message> messages = conversations.stream()
-                .flatMap(conversation -> conversation.getMessages().stream())
-                .collect(Collectors.toList());
+            List<Message> messages = conversations.stream()
+                    .flatMap(conversation -> conversation.getMessages().stream())
+                    .collect(Collectors.toList());
 
-        conversationDao.saveAll(conversations);
-        userDao.save(UserMapper.fromThrift(user));
-        messageDao.saveAll(messages);
+            conversationDao.saveAll(conversations);
+            userDao.save(UserMapper.fromThrift(user));
+            messageDao.saveAll(messages);
+        } catch (Exception e) {
+            log.error("Failed to save conversation for user: {}", user, e);
+            throw new TException(e);
+        }
     }
 
 
@@ -107,7 +122,6 @@ public class MessagesService implements MessageServiceSrv.Iface {
     private List<com.rbkmoney.messages.domain.Conversation> enrichWithMessages(
             List<com.rbkmoney.messages.domain.Conversation> conversations,
             List<String> conversationIds) {
-
         Map<String, List<Message>> conversationIdsMessages = messageDao.findAllByConversationId(conversationIds)
                 .stream()
                 .collect(Collectors.groupingBy(Message::getConversationId));
