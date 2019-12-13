@@ -33,7 +33,7 @@ public class MessagesService implements MessageServiceSrv.Iface {
     public GetConversationResponse getConversations(List<String> conversationIds, ConversationFilter conversationFilter)
             throws TException {
         String conversationIdsJoin = String.join(", ", conversationIds);
-        log.info("Get conversation by ids: {}", String.join(", ", conversationIdsJoin));
+        log.info("Get conversation by ids: {}", conversationIdsJoin);
         List<com.rbkmoney.messages.domain.Conversation> conversations = conversationDao.findAllById(conversationIds);
 
         checkAllConversationsFound(conversations, conversationIds);
