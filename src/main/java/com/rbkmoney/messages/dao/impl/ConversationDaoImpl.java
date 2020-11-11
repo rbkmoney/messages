@@ -8,36 +8,40 @@ import com.rbkmoney.messages.exception.DaoException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class ConversationDaoImpl implements ConversationDao {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
     private final DaoHelper daoHelper;
 
     private final ConversationRowMapper rowMapper = new ConversationRowMapper();
 
     @Override
     public void saveAll(List<Conversation> conversations) throws DaoException {
-        String upsertSql = "INSERT INTO msgs.conversation(id, status) VALUES (?, ?) " +
+        String upsertSql = "INSERT INTO msgs.conversation(id, status) VALUES (:id, :status) " +
                 "ON CONFLICT (id) DO " +
                 "UPDATE SET status = excluded.status;";
-        int[][] updateCounts;
         try {
-            updateCounts = jdbcTemplate.batchUpdate(upsertSql, conversations, daoHelper.batchSize, (ps, argument) -> {
-                ps.setString(1, argument.getId());
-                ps.setString(2, argument.getStatus().toString());
-            });
+            var batchValues = conversations.stream()
+                    .map(c -> new MapSqlParameterSource()
+                            .addValue("id", c.getId())
+                            .addValue("status", c.getStatus().toString()).getValues())
+                    .collect(Collectors.toList());
+            jdbcTemplate.batchUpdate(upsertSql, batchValues.toArray(new Map[conversations.size()]));
         } catch (Exception ex) {
             throw new DaoException(ex);
         }
-        daoHelper.checkUpdateRowsSuccess(updateCounts);
     }
 
     @Override

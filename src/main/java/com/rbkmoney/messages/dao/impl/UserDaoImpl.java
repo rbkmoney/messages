@@ -1,48 +1,47 @@
 package com.rbkmoney.messages.dao.impl;
 
-import com.rbkmoney.messages.dao.DaoHelper;
 import com.rbkmoney.messages.dao.UserDao;
 import com.rbkmoney.messages.domain.User;
 import com.rbkmoney.messages.exception.DaoException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class UserDaoImpl implements UserDao {
 
-    private final JdbcTemplate jdbcTemplate;
-    private final DaoHelper daoHelper;
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     private final UserRowMapper rowMapper = new UserRowMapper();
 
     @Override
     public void saveAll(List<User> users) throws DaoException {
-        String upsertSql = "INSERT INTO msgs.author(id, email, full_name) VALUES (?, ?, ?) " +
+        String upsertSql = "INSERT INTO msgs.author(id, email, full_name) VALUES (:id, :email, :full_name) " +
                 "ON CONFLICT (id) DO " +
                 "UPDATE set email = excluded.email, full_name = excluded.full_name;";
-        int[][] updateCounts;
-
         try {
-            updateCounts = jdbcTemplate.batchUpdate(upsertSql, users, daoHelper.batchSize, (ps, argument) -> {
-                ps.setString(1, argument.getId());
-                ps.setString(2, argument.getEmail());
-                ps.setString(3, argument.getFullName());
-            });
+
+            var batchValues = users.stream()
+                    .map(u -> new MapSqlParameterSource()
+                            .addValue("id", u.getId())
+                            .addValue("email", u.getEmail())
+                            .addValue("full_name", u.getFullName())
+                            .getValues())
+                    .collect(Collectors.toList());
+            jdbcTemplate.batchUpdate(upsertSql, batchValues.toArray(new Map[users.size()]));
         } catch (Exception ex) {
             throw new DaoException(ex);
         }
-
-        daoHelper.checkUpdateRowsSuccess(updateCounts);
     }
 
     @Override
@@ -66,9 +65,9 @@ public class UserDaoImpl implements UserDao {
     @Override
     public List<User> findAllById(List<String> ids) throws DaoException {
         String selectSql = "SELECT id, email, full_name FROM msgs.author " +
-                "WHERE id in " + daoHelper.collectToIdsCollection(ids);
+                "WHERE id in (:ids)";
         try {
-            return jdbcTemplate.query(selectSql, rowMapper);
+            return jdbcTemplate.query(selectSql, new MapSqlParameterSource("ids", ids), rowMapper);
         } catch (Exception ex) {
             throw new DaoException(ex);
         }
